@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0f0b" />
+  <meta name="description" content="Chaac Memory Helper — registre visualmente a sequência do desafio de memória do Templo de Chaac." />
+  <title>Chaac Memory Helper</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07100c;
+      --panel: rgba(18, 28, 20, .88);
+      --panel-2: rgba(28, 39, 29, .78);
+      --line: rgba(196, 219, 184, .12);
+      --text: #f3f4e8;
+      --muted: #a9b5a4;
+      --gold: #d5aa63;
+      --gold-2: #8d5f32;
+      --wood: #6e3d23;
+      --wood-dark: #3b2016;
+      --stone: #273029;
+      --green: #6fdc54;
+      --green-2: #b4ff8f;
+      --danger: #d86655;
+      --shadow: 0 18px 70px rgba(0, 0, 0, .48);
+      --radius: 24px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      font-family: ui-rounded, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 50% -10%, rgba(107, 139, 78, .20), transparent 34rem),
+        linear-gradient(rgba(0,0,0,.18), rgba(0,0,0,.18)),
+        repeating-linear-gradient(0deg, transparent 0 43px, rgba(151, 171, 139, .055) 43px 45px),
+        repeating-linear-gradient(90deg, rgba(151, 171, 139, .03) 0 85px, transparent 85px 170px),
+        var(--bg);
+      overflow-x: hidden;
+    }
+
+    button { font: inherit; }
+
+    .app {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      padding: 18px clamp(12px, 2vw, 24px) 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .brand { min-width: 0; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .eyebrow::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 14px rgba(111, 220, 84, .9);
+    }
+    h1 {
+      margin: 4px 0 0;
+      font-size: clamp(22px, 4vw, 34px);
+      line-height: 1;
+      letter-spacing: -.04em;
+    }
+    .subtitle {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .counter {
+      flex: 0 0 auto;
+      min-width: 90px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.035);
+      text-align: center;
+      box-shadow: inset 0 1px rgba(255,255,255,.04);
+    }
+    .counter strong { display: block; font-size: 24px; line-height: 1; }
+    .counter span { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+
+    .game-card {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background:
+        radial-gradient(circle at 50% 45%, rgba(115, 141, 102, .12), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012)),
+        var(--panel);
+      box-shadow: var(--shadow), inset 0 1px rgba(255,255,255,.04);
+      overflow: hidden;
+    }
+
+    .wheel-wrap {
+      position: relative;
+      display: grid;
+      place-items: center;
+      padding: clamp(8px, 2vw, 18px) 10px 4px;
+      min-height: 380px;
+      isolation: isolate;
+    }
+
+    .wheel-wrap::before {
+      content: "";
+      position: absolute;
+      width: min(72vw, 540px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(96, 255, 82, .07), transparent 62%);
+      filter: blur(10px);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    #chaacWheel {
+      display: block;
+      width: min(100%, 560px);
+      height: auto;
+      filter: drop-shadow(0 28px 24px rgba(0,0,0,.42));
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .segment {
+      cursor: pointer;
+      outline: none;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    .segment .hit {
+      fill: rgba(122, 77, 47, .88);
+      stroke: #321b12;
+      stroke-width: 8;
+      transition: fill 90ms linear, stroke 90ms linear, filter 90ms linear, transform 90ms ease-out;
+    }
+
+    .segment.outer .hit { fill: rgba(97, 58, 38, .96); }
+    .segment.center .hit { fill: #6b4029; }
+
+    .segment:hover .hit,
+    .segment:focus-visible .hit {
+      stroke: #b38552;
+      filter: brightness(1.08);
+    }
+
+    .segment.flash .hit {
+      fill: #4aa33f;
+      stroke: var(--green-2);
+      filter: drop-shadow(0 0 11px rgba(111, 220, 84, .85)) brightness(1.12);
+    }
+
+    .ring-line { fill: none; stroke: #3b2218; stroke-width: 18; opacity: .95; }
+    .ring-highlight { fill: none; stroke: rgba(208, 159, 95, .22); stroke-width: 4; }
+    .spoke { stroke: #3d2117; stroke-width: 15; stroke-linecap: round; opacity: .95; }
+    .stone-ring { fill: #404844; stroke: #1b201d; stroke-width: 10; }
+    .stone-inset { fill: #879092; opacity: .75; }
+    .engrave { fill: none; stroke: #321c14; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+    .tiny-engrave { fill: none; stroke: #2b1812; stroke-width: 5; stroke-linecap: round; opacity: .85; }
+
+    .hintbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px 14px;
+      flex-wrap: wrap;
+      padding: 0 14px 16px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    .hintbar kbd {
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: #e9ebdf;
+      box-shadow: inset 0 -1px rgba(0,0,0,.35);
+      font-size: 10px;
+    }
+
+    .sequence-panel {
+      border-top: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.018), rgba(0,0,0,.08));
+      padding: 14px;
+    }
+
+    .sequence-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .sequence-title { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+    .sequence-title strong { font-size: 15px; }
+    .last-label {
+      color: var(--green-2);
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(44vw, 280px);
+    }
+
+    .actions { display: flex; gap: 7px; flex: 0 0 auto; }
+    .action {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      min-height: 34px;
+      padding: 7px 10px;
+      cursor: pointer;
+      transition: transform .1s ease, background .1s ease, border-color .1s ease;
+    }
+    .action:hover:not(:disabled) { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.2); }
+    .action:active:not(:disabled) { transform: translateY(1px) scale(.98); }
+    .action:disabled { opacity: .34; cursor: not-allowed; }
+    .action.danger.confirm { background: rgba(216,102,85,.15); border-color: rgba(216,102,85,.55); color: #ffd1c9; }
+
+    .sequence {
+      min-height: 78px;
+      max-height: 214px;
+      overflow: auto;
+      display: flex;
+      align-content: flex-start;
+      flex-wrap: wrap;
+      gap: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,.18) transparent;
+    }
+
+    .empty {
+      width: 100%;
+      min-height: 72px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed rgba(255,255,255,.1);
+      border-radius: 14px;
+      color: #7f8b7d;
+      font-size: 13px;
+      text-align: center;
+      padding: 12px;
+    }
+
+    .move {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 9px 7px 7px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.09);
+      background: rgba(255,255,255,.038);
+      box-shadow: inset 0 1px rgba(255,255,255,.03);
+      animation: popIn .14s ease-out both;
+      min-width: 112px;
+    }
+    .move.latest {
+      border-color: rgba(180,255,143,.34);
+      background: rgba(111,220,84,.075);
+    }
+    @keyframes popIn { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
+
+    .move-number {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: rgba(213,170,99,.11);
+      color: #ebcf9d;
+      font-weight: 800;
+      font-size: 10px;
+      flex: 0 0 auto;
+    }
+
+    .mini-map {
+      position: relative;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 1px solid rgba(211, 178, 119, .28);
+      background: radial-gradient(circle, rgba(139, 93, 55, .18), rgba(0,0,0,.08));
+      flex: 0 0 auto;
+    }
+    .mini-map::after {
+      content: "";
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      left: calc(50% + var(--x) * 9px - 3.5px);
+      top: calc(50% + var(--y) * 9px - 3.5px);
+      background: var(--green-2);
+      box-shadow: 0 0 9px rgba(111,220,84,.8);
+    }
+    .mini-map.inner::before {
+      content: "";
+      position: absolute;
+      inset: 6px;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 50%;
+    }
+
+    .move-text { min-width: 0; line-height: 1.1; }
+    .move-text b { display: block; font-size: 11px; white-space: nowrap; }
+    .move-text small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; white-space: nowrap; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      transform: translate(-50%, 16px);
+      opacity: 0;
+      pointer-events: none;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(17, 24, 18, .94);
+      border: 1px solid rgba(255,255,255,.1);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      color: #e9ece2;
+      font-size: 12px;
+      transition: opacity .16s ease, transform .16s ease;
+      z-index: 50;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    footer {
+      padding: 12px 6px 0;
+      text-align: center;
+      color: #677167;
+      font-size: 10px;
+    }
+
+    @media (max-width: 620px) {
+      .app { padding-top: 12px; }
+      .subtitle { display: none; }
+      .counter { padding: 8px 10px; min-width: 72px; }
+      .counter strong { font-size: 20px; }
+      .wheel-wrap { min-height: 0; padding-top: 4px; }
+      #chaacWheel { width: min(100%, 470px); }
+      .hintbar { padding-bottom: 10px; font-size: 10px; }
+      .hintbar .desktop-only { display: none; }
+      .sequence-head { align-items: flex-start; }
+      .sequence-title { flex-direction: column; gap: 2px; }
+      .last-label { max-width: 38vw; }
+      .action { padding-inline: 9px; }
+      .move { min-width: 103px; flex: 1 1 103px; }
+      .sequence { max-height: 180px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="eyebrow">Templo de Chaac</div>
+        <h1>Memory Helper</h1>
+        <p class="subtitle">Clique na mesma posição que acender no jogo. A sequência fica registrada logo abaixo.</p>
+      </div>
+      <div class="counter" aria-live="polite"><strong id="counter">0</strong><span>movimentos</span></div>
+    </header>
+
+    <main class="game-card">
+      <section class="wheel-wrap" aria-label="Roda do Templo de Chaac">
+        <svg id="chaacWheel" viewBox="0 0 600 600" role="group" aria-label="Roda com nove posições clicáveis">
+          <defs>
+            <radialGradient id="woodGlow" cx="50%" cy="38%" r="68%">
+              <stop offset="0" stop-color="#8f5b37"/>
+              <stop offset=".68" stop-color="#5a321f"/>
+              <stop offset="1" stop-color="#2f1a13"/>
+            </radialGradient>
+            <radialGradient id="centerGlow" cx="42%" cy="34%" r="70%">
+              <stop offset="0" stop-color="#916043"/>
+              <stop offset="1" stop-color="#4b2b20"/>
+            </radialGradient>
+            <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="9" stdDeviation="8" flood-color="#000" flood-opacity=".34"/>
+            </filter>
+          </defs>
+
+          <!-- silhouette / temple wheel -->
+          <circle cx="300" cy="300" r="274" fill="#21140f" opacity=".95"/>
+          <circle cx="300" cy="300" r="258" fill="url(#woodGlow)" stroke="#2b1710" stroke-width="14" filter="url(#softShadow)"/>
+          <circle cx="300" cy="300" r="224" class="stone-ring"/>
+          <circle cx="300" cy="300" r="204" fill="#1f2723" stroke="#5d3925" stroke-width="15"/>
+
+          <!-- four outer clickable quadrants -->
+          <g class="segment outer" tabindex="0" role="button" aria-label="Externo superior direito" data-pos="outer-ne">
+            <path class="hit" d="M 353 103 A 210 210 0 0 1 497 247 L 440 262 A 150 150 0 0 0 338 160 Z"/>
+            <path class="tiny-engrave" d="M 410 153 l18 18 m-18 0 l18 -18 M 418 144 v37 M 400 162 h37"/>
+          </g>
+          <g class="segment outer" tabindex="0" role="button" aria-label="Externo inferior direito" data-pos="outer-se">
+            <path class="hit" d="M 497 353 A 210 210 0 0 1 353 497 L 338 440 A 150 150 0 0 0 440 338 Z"/>
+            <path class="tiny-engrave" d="M 428 412 l-18 18 m18 0 l-18 -18 M 419 404 v37 M 400 422 h37"/>
+          </g>
+          <g class="segment outer" tabindex="0" role="button" aria-label="Externo inferior esquerdo" data-pos="outer-sw">
+            <path class="hit" d="M 247 497 A 210 210 0 0 1 103 353 L 160 338 A 150 150 0 0 0 262 440 Z"/>
+            <path class="tiny-engrave" d="M 171 412 l18 18 m-18 0 l18 -18 M 180 404 v37 M 162 422 h37"/>
+          </g>
+          <g class="segment outer" tabindex="0" role="button" aria-label="Externo superior esquerdo" data-pos="outer-nw">
+            <path class="hit" d="M 103 247 A 210 210 0 0 1 247 103 L 262 160 A 150 150 0 0 0 160 262 Z"/>
+            <path class="tiny-engrave" d="M 171 153 l18 18 m-18 0 l18 -18 M 180 144 v37 M 162 162 h37"/>
+          </g>
+
+          <!-- inner ring base / dividers -->
+          <circle cx="300" cy="300" r="176" fill="#352219" stroke="#23150f" stroke-width="12"/>
+          <circle cx="300" cy="300" r="170" fill="#737c7b" opacity=".72"/>
+
+          <g class="segment inner" tabindex="0" role="button" aria-label="Interno superior" data-pos="inner-n">
+            <path class="hit" d="M 204 204 A 136 136 0 0 1 396 204 L 354 246 A 77 77 0 0 0 246 246 Z"/>
+          </g>
+          <g class="segment inner" tabindex="0" role="button" aria-label="Interno direito" data-pos="inner-e">
+            <path class="hit" d="M 396 204 A 136 136 0 0 1 396 396 L 354 354 A 77 77 0 0 0 354 246 Z"/>
+          </g>
+          <g class="segment inner" tabindex="0" role="button" aria-label="Interno inferior" data-pos="inner-s">
+            <path class="hit" d="M 396 396 A 136 136 0 0 1 204 396 L 246 354 A 77 77 0 0 0 354 354 Z"/>
+          </g>
+          <g class="segment inner" tabindex="0" role="button" aria-label="Interno esquerdo" data-pos="inner-w">
+            <path class="hit" d="M 204 396 A 136 136 0 0 1 204 204 L 246 246 A 77 77 0 0 0 246 354 Z"/>
+          </g>
+
+          <!-- structural rings and spokes to evoke the original wheel -->
+          <circle cx="300" cy="300" r="188" class="ring-line"/>
+          <circle cx="300" cy="300" r="188" class="ring-highlight"/>
+          <line x1="300" y1="112" x2="300" y2="191" class="spoke"/>
+          <line x1="488" y1="300" x2="409" y2="300" class="spoke"/>
+          <line x1="300" y1="488" x2="300" y2="409" class="spoke"/>
+          <line x1="112" y1="300" x2="191" y2="300" class="spoke"/>
+
+          <!-- center button -->
+          <g class="segment center" tabindex="0" role="button" aria-label="Centro" data-pos="center">
+            <circle class="hit" cx="300" cy="300" r="72" fill="url(#centerGlow)"/>
+            <circle cx="300" cy="300" r="49" fill="none" stroke="#422419" stroke-width="5" opacity=".8"/>
+            <!-- simple Chaac-inspired face engraving -->
+            <ellipse cx="282" cy="286" rx="10" ry="13" class="engrave"/>
+            <ellipse cx="318" cy="286" rx="10" ry="13" class="engrave"/>
+            <path d="M 273 317 Q 300 334 327 317 M 282 316 v17 M 300 322 v16 M 318 316 v17" class="engrave"/>
+            <path d="M 300 294 q-8 9 0 14 q8-5 0-14" class="engrave"/>
+          </g>
+
+          <circle cx="300" cy="300" r="258" fill="none" stroke="rgba(213,170,99,.16)" stroke-width="5"/>
+        </svg>
+      </section>
+
+      <div class="hintbar">
+        <span>Toque ou clique na posição que acendeu.</span>
+        <span class="desktop-only">Atalhos: <kbd>Q</kbd><kbd>↑</kbd><kbd>E</kbd> · <kbd>←</kbd><kbd>Espaço</kbd><kbd>→</kbd> · <kbd>Z</kbd><kbd>↓</kbd><kbd>C</kbd></span>
+      </div>
+
+      <section class="sequence-panel" aria-label="Sequência registrada">
+        <div class="sequence-head">
+          <div class="sequence-title">
+            <strong>Sequência registrada</strong>
+            <span id="lastLabel" class="last-label">Nenhum movimento</span>
+          </div>
+          <div class="actions">
+            <button id="undoBtn" class="action" type="button" disabled aria-label="Desfazer último movimento">↶ Desfazer</button>
+            <button id="clearBtn" class="action danger" type="button" disabled aria-label="Limpar sequência">Limpar</button>
+          </div>
+        </div>
+        <div id="sequence" class="sequence" aria-live="polite">
+          <div class="empty">A sequência aparecerá aqui conforme você clicar na roda.</div>
+        </div>
+      </section>
+    </main>
+
+    <footer>Ferramenta independente para auxílio visual de memória. Nenhuma interação automática com o jogo.</footer>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = 'chaac-helper-sequence-v1';
+
+      const positions = {
+        'center':   { label: 'Centro', short: 'Centro', ring: 'center', x: 0, y: 0 },
+        'inner-n':  { label: 'Interno superior', short: 'Interno ↑', ring: 'inner', x: 0, y: -1 },
+        'inner-e':  { label: 'Interno direito', short: 'Interno →', ring: 'inner', x: 1, y: 0 },
+        'inner-s':  { label: 'Interno inferior', short: 'Interno ↓', ring: 'inner', x: 0, y: 1 },
+        'inner-w':  { label: 'Interno esquerdo', short: 'Interno ←', ring: 'inner', x: -1, y: 0 },
+        'outer-ne': { label: 'Externo superior direito', short: 'Externo ↗', ring: 'outer', x: 1, y: -1 },
+        'outer-se': { label: 'Externo inferior direito', short: 'Externo ↘', ring: 'outer', x: 1, y: 1 },
+        'outer-sw': { label: 'Externo inferior esquerdo', short: 'Externo ↙', ring: 'outer', x: -1, y: 1 },
+        'outer-nw': { label: 'Externo superior esquerdo', short: 'Externo ↖', ring: 'outer', x: -1, y: -1 },
+      };
+
+      const keyMap = {
+        'q': 'outer-nw', 'arrowup': 'inner-n', 'e': 'outer-ne',
+        'arrowleft': 'inner-w', ' ': 'center', '5': 'center', 'arrowright': 'inner-e',
+        'z': 'outer-sw', 'arrowdown': 'inner-s', 'c': 'outer-se',
+      };
+
+      const sequenceEl = document.getElementById('sequence');
+      const counterEl = document.getElementById('counter');
+      const lastLabelEl = document.getElementById('lastLabel');
+      const undoBtn = document.getElementById('undoBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const toast = document.getElementById('toast');
+      const segments = [...document.querySelectorAll('.segment[data-pos]')];
+
+      let sequence = [];
+      let clearArmed = false;
+      let clearTimer = null;
+      let toastTimer = null;
+
+      try {
+        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (Array.isArray(stored)) sequence = stored.filter(key => positions[key]);
+      } catch (_) {}
+
+      const persist = () => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sequence)); } catch (_) {}
+      };
+
+      const showToast = (message) => {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add('show');
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 1100);
+      };
+
+      const miniMap = (meta) => {
+        const map = document.createElement('span');
+        map.className = `mini-map ${meta.ring === 'inner' ? 'inner' : ''}`;
+        map.style.setProperty('--x', meta.ring === 'inner' ? meta.x * .72 : meta.x);
+        map.style.setProperty('--y', meta.ring === 'inner' ? meta.y * .72 : meta.y);
+        return map;
+      };
+
+      const render = () => {
+        counterEl.textContent = String(sequence.length);
+        undoBtn.disabled = sequence.length === 0;
+        clearBtn.disabled = sequence.length === 0;
+        lastLabelEl.textContent = sequence.length ? `Último: ${positions[sequence.at(-1)].short}` : 'Nenhum movimento';
+
+        if (sequence.length === 0) {
+          sequenceEl.innerHTML = '<div class="empty">A sequência aparecerá aqui conforme você clicar na roda.</div>';
+          return;
+        }
+
+        sequenceEl.replaceChildren();
+        sequence.forEach((key, index) => {
+          const meta = positions[key];
+          const card = document.createElement('div');
+          card.className = `move${index === sequence.length - 1 ? ' latest' : ''}`;
+          card.title = `${index + 1}. ${meta.label}`;
+
+          const number = document.createElement('span');
+          number.className = 'move-number';
+          number.textContent = index + 1;
+
+          const text = document.createElement('span');
+          text.className = 'move-text';
+          const strong = document.createElement('b');
+          strong.textContent = meta.short;
+          const small = document.createElement('small');
+          small.textContent = meta.ring === 'center' ? 'meio da roda' : (meta.ring === 'inner' ? 'círculo menor' : 'círculo maior');
+          text.append(strong, small);
+
+          card.append(number, miniMap(meta), text);
+          sequenceEl.append(card);
+        });
+
+        requestAnimationFrame(() => {
+          sequenceEl.scrollTop = sequenceEl.scrollHeight;
+          const latest = sequenceEl.lastElementChild;
+          latest?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        });
+      };
+
+      const flashSegment = (key) => {
+        const segment = document.querySelector(`.segment[data-pos="${key}"]`);
+        if (!segment) return;
+        segment.classList.remove('flash');
+        void segment.getBoundingClientRect();
+        segment.classList.add('flash');
+        setTimeout(() => segment.classList.remove('flash'), 180);
+      };
+
+      const record = (key) => {
+        if (!positions[key]) return;
+        sequence.push(key);
+        persist();
+        flashSegment(key);
+        if (navigator.vibrate) navigator.vibrate(16);
+        render();
+      };
+
+      const activateSegment = (event) => {
+        const segment = event.currentTarget;
+        record(segment.dataset.pos);
+      };
+
+      segments.forEach(segment => {
+        segment.addEventListener('pointerdown', activateSegment);
+        segment.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            record(segment.dataset.pos);
+          }
+        });
+      });
+
+      undoBtn.addEventListener('click', () => {
+        if (!sequence.length) return;
+        const removed = sequence.pop();
+        persist();
+        render();
+        showToast(`Removido: ${positions[removed].short}`);
+      });
+
+      clearBtn.addEventListener('click', () => {
+        if (!sequence.length) return;
+        if (!clearArmed) {
+          clearArmed = true;
+          clearBtn.classList.add('confirm');
+          clearBtn.textContent = 'Confirmar';
+          clearTimeout(clearTimer);
+          clearTimer = setTimeout(() => {
+            clearArmed = false;
+            clearBtn.classList.remove('confirm');
+            clearBtn.textContent = 'Limpar';
+          }, 2200);
+          return;
+        }
+        sequence = [];
+        persist();
+        clearArmed = false;
+        clearBtn.classList.remove('confirm');
+        clearBtn.textContent = 'Limpar';
+        render();
+        showToast('Nova sequência pronta');
+      });
+
+      window.addEventListener('keydown', event => {
+        if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+        const target = event.target;
+        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable) return;
+
+        if (event.key === 'Backspace') {
+          event.preventDefault();
+          undoBtn.click();
+          return;
+        }
+
+        if (event.key === 'Escape') {
+          if (!clearBtn.disabled) clearBtn.click();
+          return;
+        }
+
+        const key = event.key.toLowerCase();
+        const position = keyMap[key];
+        if (position) {
+          event.preventDefault();
+          record(position);
+        }
+      });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
